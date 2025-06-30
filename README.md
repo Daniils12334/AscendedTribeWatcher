@@ -1,3 +1,7 @@
+
+![preview](images/logs.png)
+![Preview](images/dc_sample.png)
+
 ```graph TD
   A[Capture Screen] --> B[OCR Extraction]
   B --> C[Log Validation]
