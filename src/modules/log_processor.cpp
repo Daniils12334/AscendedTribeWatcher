@@ -22,14 +22,14 @@ const std::unordered_map<std::string, std::string> LogProcessor::wordSeparations
     {"tokill", "to kill"},
     {"auto decay", "auto-decay"},
     {"metal foundation", "Metal Foundation"},
-    {"D4", "04"},  // Fix OCR error for hour
-    {"D8", "08"}   // Fix OCR error for hour
+    {"D4", "04"},  
+    {"D8", "08"}   
 };
 
 // Keywords that trigger important event highlighting
 const std::vector<std::string> LogProcessor::importantKeywords = {
-    "destroyed", "killed", "demolished", "starved", 
-    "expired", "froze", "died", "slain", "decay"
+    "destroyed", "killed", "starved", 
+    "expired", "died", "slain"
 };
 
 std::string LogProcessor::extractMostRecentLog(const std::string& fullText) {
