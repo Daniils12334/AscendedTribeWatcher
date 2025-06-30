@@ -1,0 +1,6 @@
+build/
+.venv/
+*.swp
+*.swo
+*.log
+*.out
