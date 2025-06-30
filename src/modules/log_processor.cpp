@@ -2,6 +2,7 @@
 #include <iostream>
 #include <algorithm>
 #include <cctype>
+#include <regex>
 
 // Word separations for common OCR errors
 const std::unordered_map<std::string, std::string> LogProcessor::wordSeparations = {
@@ -21,7 +22,8 @@ const std::unordered_map<std::string, std::string> LogProcessor::wordSeparations
     {"tokill", "to kill"},
     {"auto decay", "auto-decay"},
     {"metal foundation", "Metal Foundation"},
-    {"D8", "08"}  // Fix OCR error for timestamp
+    {"D4", "04"},  // Fix OCR error for hour
+    {"D8", "08"}   // Fix OCR error for hour
 };
 
 // Keywords that trigger important event highlighting
@@ -31,54 +33,57 @@ const std::vector<std::string> LogProcessor::importantKeywords = {
 };
 
 std::string LogProcessor::extractMostRecentLog(const std::string& fullText) {
-    // Find the position of the first timestamp
-    size_t timestampPos = fullText.find("Day ");
-    if (timestampPos == std::string::npos) {
-        timestampPos = fullText.find("day ");
-        if (timestampPos == std::string::npos) {
-            return fullText;
+    // Find the first timestamp in the text
+    size_t startPos = fullText.find("Day ");
+    if (startPos == std::string::npos) {
+        startPos = fullText.find("day ");
+        if (startPos == std::string::npos) {
+            return fullText;  // No timestamp found
         }
     }
 
-    // Find the position of the next timestamp
-    size_t nextTimestampPos = fullText.find("Day ", timestampPos + 4);
-    if (nextTimestampPos == std::string::npos) {
-        nextTimestampPos = fullText.find("day ", timestampPos + 4);
+    // Find the next timestamp after the first one
+    size_t nextPos = fullText.find("Day ", startPos + 4);
+    if (nextPos == std::string::npos) {
+        nextPos = fullText.find("day ", startPos + 4);
     }
 
-    // If we found a next timestamp, extract up to that point
-    if (nextTimestampPos != std::string::npos) {
-        return fullText.substr(timestampPos, nextTimestampPos - timestampPos);
+    // Extract the most recent log
+    if (nextPos != std::string::npos) {
+        return fullText.substr(startPos, nextPos - startPos);
     }
-    
-    // Otherwise return from the first timestamp to the end
-    return fullText.substr(timestampPos);
+    return fullText.substr(startPos);
 }
 
-std::string LogProcessor::extractTimestamp(const std::string& log) {
-    // Simplified timestamp extraction - find first colon
-    size_t colonPos = log.find(':');
-    if (colonPos == std::string::npos || colonPos < 10 || colonPos > 30) {
-        return "";
-    }
-
-    // Extract text from start to 2 characters after first colon
-    size_t start = 0;
-    size_t end = log.find(' ', colonPos + 3);
-    if (end == std::string::npos) {
-        end = log.length();
-    }
-
-    std::string timestamp = log.substr(start, end - start);
+std::string LogProcessor::extractNormalizedTimestamp(const std::string& log) {
+    // Regex pattern to match various timestamp formats
+    std::regex timestampPattern(R"((?:day|Day)[\s,.:]*(\d+)[\s,.:]*(\d{1,2})[\s,.:](\d{1,2})[\s,.:](\d{1,2}))");
+    std::smatch matches;
     
-    // Fix common OCR errors in timestamp
-    size_t pos = 0;
-    while ((pos = timestamp.find("D8", pos)) != std::string::npos) {
-        timestamp.replace(pos, 2, "08");
-        pos += 2;
+    if (std::regex_search(log, matches, timestampPattern)) {
+        try {
+            int day = std::stoi(matches[1].str());
+            int hour = std::stoi(matches[2].str());
+            int minute = std::stoi(matches[3].str());
+            int second = std::stoi(matches[4].str());
+            
+            // Validate time components
+            if (hour < 0 || hour > 23 || minute < 0 || minute > 59 || second < 0 || second > 59) {
+                return "";
+            }
+            
+            // Format as standardized timestamp: DDDD:HH:MM:SS
+            std::ostringstream formatted;
+            formatted << day << ":"
+                      << std::setw(2) << std::setfill('0') << hour << ":"
+                      << std::setw(2) << std::setfill('0') << minute << ":"
+                      << std::setw(2) << std::setfill('0') << second;
+            return formatted.str();
+        } catch (...) {
+            return "";
+        }
     }
-    
-    return timestamp;
+    return "";
 }
 
 std::string LogProcessor::formatLog(const std::string& rawLog) {
